@@ -1,4 +1,5 @@
 import logging
+
 logging.disable(logging.CRITICAL)
 import numpy as np
 import scipy as sp
@@ -19,12 +20,14 @@ import drl_hw1.utils.process_samples as process_samples
 from drl_hw1.utils.logger import DataLog
 from drl_hw1.algos.batch_reinforce import BatchREINFORCE
 
+
 class AdaptiveVPG(BatchREINFORCE):
     def __init__(self, env, policy, baseline,
-                 learn_rate=10.0, # alpha (should be picked large enough)
-                 kl_desired=0.01, # delta bar (0.01-0.1 is a reasonable range)
+                 learn_rate=10.0,  # alpha (should be picked large enough)
+                 kl_desired=0.01,  # delta bar (0.01-0.1 is a reasonable range)
                  seed=None,
-                 save_logs=False):
+                 save_logs=False,
+                 beta=0.9):
 
         self.env = env
         self.policy = policy
@@ -34,6 +37,7 @@ class AdaptiveVPG(BatchREINFORCE):
         self.seed = seed
         self.save_logs = save_logs
         self.running_score = None
+        self.beta = beta
         if save_logs: self.logger = DataLog()
 
     # ----------------------------------------------------------
@@ -42,7 +46,7 @@ class AdaptiveVPG(BatchREINFORCE):
         # Concatenate from all the trajectories
         observations = np.concatenate([path["observations"] for path in paths])
         actions = np.concatenate([path["actions"] for path in paths])
-        advantages = np.concatenate([path["advantages"] for path in paths])
+        advantages = np.concatenate([ path["advantages"] for path in paths])
         # Advantage whitening
         advantages = (advantages - np.mean(advantages)) / (np.std(advantages) + 1e-6)
 
@@ -54,7 +58,7 @@ class AdaptiveVPG(BatchREINFORCE):
         max_return = np.amax(path_returns)
         base_stats = [mean_return, std_return, min_return, max_return]
         self.running_score = mean_return if self.running_score is None else \
-                             0.9*self.running_score + 0.1*mean_return  # approx avg of last 10 iters
+            0.9 * self.running_score + 0.1 * mean_return  # approx avg of last 10 iters
         if self.save_logs: self.log_rollout_statistics(paths)
 
         # Keep track of times for various computations
@@ -69,11 +73,17 @@ class AdaptiveVPG(BatchREINFORCE):
 
         ts = timer.time()
         surr_before = self.CPI_surrogate(observations, actions, advantages).data.numpy().ravel()[0]
-        curr_params = self.policy.get_param_values()        
+        curr_params = self.policy.get_param_values()
         vpg_grad = self.flat_vpg(observations, actions, advantages)
+
         alpha = copy.deepcopy(self.alpha)
         new_params, new_surr, kl_dist = self.simple_gradient_update(curr_params, vpg_grad, alpha,
-                                    observations, actions, advantages)
+                                                                    observations, actions, advantages)
+
+        # un-comment for problem 2
+        if kl_dist > self.delta:
+            self.alpha = self.beta * self.alpha
+
         self.policy.set_param_values(new_params, set_new=True, set_old=True)
         surr_improvement = new_surr - surr_before
         t_opt += timer.time() - ts
@@ -99,7 +109,7 @@ class AdaptiveVPG(BatchREINFORCE):
         # The function DOES NOT set the parameters to the new_params -- this has to be
         # done explicitly outside this function.
 
-        new_params = curr_params + step_size*search_direction
+        new_params = curr_params + step_size * search_direction
         self.policy.set_param_values(new_params, set_new=True, set_old=False)
         new_surr = self.CPI_surrogate(observations, actions, advantages).data.numpy().ravel()[0]
         kl_dist = self.kl_old_new(observations, actions).data.numpy().ravel()[0]

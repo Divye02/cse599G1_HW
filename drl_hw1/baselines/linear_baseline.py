@@ -3,7 +3,7 @@ import copy
 
 class LinearBaseline:
     def __init__(self, env_spec, reg_coeff=1e-5):
-        n = env_spec.observation_dim       # number of states
+        self.n = env_spec.observation_dim       # number of states
         self._reg_coeff = reg_coeff
         self._coeffs = None
 

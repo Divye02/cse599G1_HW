@@ -84,3 +84,4 @@ def train_agent(job_name, agent,
     if agent.save_logs:
         agent.logger.save_log('logs/')
         make_train_plots(log=agent.logger.log, keys=plot_keys, save_loc='logs/')
+    os.chdir('..')

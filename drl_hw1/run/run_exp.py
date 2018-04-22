@@ -1,14 +1,8 @@
-import sys
-sys.path.append('/Users/Divye/Documents/cse/599g1/drl_hw1')
 from drl_hw1.utils.gym_env import GymEnv
 from drl_hw1.policies.gaussian_mlp import MLP
 from drl_hw1.baselines.linear_baseline import LinearBaseline
-from drl_hw1.baselines.mlp_baseline import MLPBaseline
 from drl_hw1.algos.batch_reinforce import BatchREINFORCE
-from drl_hw1.algos.npg import NaturalPolicyGradients
 from drl_hw1.utils.train_agent import train_agent
-import drl_hw1.envs
-import time as timer
 import itertools
 import numpy as np
 
