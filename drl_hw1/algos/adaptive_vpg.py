@@ -38,6 +38,7 @@ class AdaptiveVPG(BatchREINFORCE):
         self.save_logs = save_logs
         self.running_score = None
         self.beta = beta
+        np.random.seed(seed)
         if save_logs: self.logger = DataLog()
 
     # ----------------------------------------------------------
@@ -81,8 +82,10 @@ class AdaptiveVPG(BatchREINFORCE):
                                                                     observations, actions, advantages)
 
         # un-comment for problem 2
-        if kl_dist > self.delta:
+        while kl_dist > self.delta:
             self.alpha = self.beta * self.alpha
+            new_params, new_surr, kl_dist = self.simple_gradient_update(curr_params, vpg_grad, alpha,
+                                                                        observations, actions, advantages)
 
         self.policy.set_param_values(new_params, set_new=True, set_old=True)
         surr_improvement = new_surr - surr_before

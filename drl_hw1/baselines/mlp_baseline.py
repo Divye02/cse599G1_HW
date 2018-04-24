@@ -6,13 +6,21 @@ from drl_hw1.utils.gym_env import EnvSpec
 from torch.utils.data import TensorDataset, DataLoader
 
 class MLPBaseline:
-    def __init__(self, env_spec: EnvSpec, hidden_sizes=(64,64), learning_rate=1e-4, epoch=10):
+    def __init__(self, env_spec: EnvSpec, hidden_sizes=(64,64), learning_rate=1e-4, epoch=10, batch=10, seed=None):
         self.feature_size = env_spec.observation_dim + 4
         self.loss_fn = nn.MSELoss(size_average=False)
         self.learning_rate = learning_rate
         self.hidden_sizes = hidden_sizes
-        self.model = None
         self.epoch = epoch
+        torch.manual_seed(seed)
+        np.random.seed(seed)
+        self.batch = batch
+        self.model = nn.Sequential()
+        self.model.add_module('fc_0', nn.Linear(self.feature_size, self.hidden_sizes[0]))
+        self.model.add_module('tanh_0', nn.Tanh())
+        self.model.add_module('fc_1', nn.Linear(self.hidden_sizes[0], self.hidden_sizes[1]))
+        self.model.add_module('tanh_1', nn.Tanh())
+        self.model.add_module('fc_2', nn.Linear(self.hidden_sizes[1], 1))
 
     def _features(self, path):
         # compute regression features for the path
@@ -26,18 +34,10 @@ class MLPBaseline:
 
     def fit(self, paths, return_errors=False):
 
-        self.model = nn.Sequential()
-        self.model.add_module('fc_0', nn.Linear(self.n, self.hidden_sizes[0]))
-        self.model.add_module('tanh_0', nn.Tanh())
-        self.model.add_module('fc_1', nn.Linear(self.hidden_sizes[0], self.hidden_sizes[1]))
-        self.model.add_module('tanh_1', nn.Tanh())
-        self.model.add_module('fc_2', nn.Linear(self.hidden_sizes[1], 1))
-
-
         featmat = np.concatenate([self._features(path) for path in paths])
         returns = np.concatenate([path["returns"] for path in paths])
-        dataset = TensorDataset(featmat, returns)
-        data_loader = DataLoader(dataset, batch_size=10, shuffle=True)
+        dataset = TensorDataset(torch.FloatTensor(featmat), torch.FloatTensor(returns))
+        data_loader = DataLoader(dataset, batch_size=self.batch, shuffle=True)
         optimizer = torch.optim.Adam(self.model.parameters(), lr=self.learning_rate)
 
         if return_errors:
@@ -45,6 +45,8 @@ class MLPBaseline:
 
         for _ in range(self.epoch):
             for batch_idx, (data, target) in enumerate(data_loader):
+                data = Variable(data)
+                target = Variable(target).float()
                 predictions = self.model(data)
                 loss = self.loss_fn(predictions, target)
                 error_before += loss
@@ -59,6 +61,8 @@ class MLPBaseline:
     def get_error(self, data_loader):
         error = 0
         for batch_idx, (data, target) in enumerate(data_loader):
+            data = Variable(data)
+            target = Variable(target).float()
             predictions = self.model(data)
             error += self.loss_fn(predictions, target)
         return error
@@ -66,4 +70,4 @@ class MLPBaseline:
     def predict(self, path):
         if self.model is None:
             return np.zeros(len(path["rewards"]))
-        return self.model(self._features(path))
+        return self.model(Variable(torch.FloatTensor(self._features(path)))).data.numpy().reshape(-1)

@@ -11,6 +11,7 @@ from torch.autograd import Variable
 # samplers
 import drl_hw1.samplers.trajectory_sampler as trajectory_sampler
 import drl_hw1.samplers.batch_sampler as batch_sampler
+from multiprocessing import Pool
 
 # utility functions
 import drl_hw1.utils.process_samples as process_samples
@@ -19,7 +20,7 @@ from drl_hw1.utils.logger import DataLog
 
 class NaturalPolicyGradients:
     def __init__(self, env, policy, baseline,
-                 delta=0.01,
+                 delta=0.1,
                  seed=None,
                  save_logs=False):
 
@@ -30,6 +31,7 @@ class NaturalPolicyGradients:
         self.save_logs = save_logs
         self.delta = delta
         self.running_score = None
+        np.random.seed(seed)
         if save_logs: self.logger = DataLog()
 
     def CPI_surrogate(self, observations, actions, advantages):
@@ -128,17 +130,22 @@ class NaturalPolicyGradients:
         # Optimization algorithm
         # --------------------------
         ts = timer.time()
-        surr_before = self.CPI_surrogate(observations, actions, advantages).data.numpy().ravel()[0]
+        sub_i = np.random.choice(observations.shape[0], int(0.1 * observations.shape[0]))
+
+        surr_before = self.CPI_surrogate(observations,actions, advantages).data.numpy().ravel()[0]
         curr_params = self.policy.get_param_values()
         vpg_grad = self.flat_vpg(observations, actions, advantages)
 
-        F = self.get_fisher_mat(observations, actions)
-        npg_grad = spLA.cg(F, vpg_grad)[0]
+        F = self.get_fisher_mat(observations, actions, sub_s = 0.1)
+        F[np.diag_indices_from(F)] += 1e-8
+        npg_grad = spLA.cg(F, vpg_grad, maxiter=15)[0]
         alpha = self.calculate_alpha(vpg_grad, npg_grad)
 
+        # print("alpha", alpha)
+        # print("npg grad", npg_grad)
+        # print("vpg grad", vpg_grad)
         new_params, new_surr, kl_dist = self.simple_gradient_update(curr_params, npg_grad, alpha,
                                         observations, actions, advantages)
-
 
 
         self.policy.set_param_values(new_params, set_new=True, set_old=True)
@@ -155,11 +162,17 @@ class NaturalPolicyGradients:
         return base_stats
 
     def calculate_alpha(self, vpg_grad, npg_grad):
-        alpha = np.sqrt(self.delta / np.dot(vpg_grad, npg_grad))
+        alpha = (self.delta / (np.dot(vpg_grad, npg_grad))) ** 0.5
         return alpha
 
-    def get_fisher_mat(self, observations, actions):
-        ll = self.policy.new_dist_info(observations, actions)[0]
+    def get_fisher_mat(self, observations, actions, sub_s=0.1):
+        sub_i = np.random.choice(observations.shape[0], int(sub_s * observations.shape[0]))
+        ll = self.policy.new_dist_info(observations[sub_i], actions[sub_i])[0]
+        # ll = torch.sort(ll, descending=False)[0]
+
+        # sub_i = np.random.choice(int(len(observations)*0.7), int(0.1 * observations.shape[0]))
+
+        # ll = ll[torch.LongTensor(sub_i)]
         F = np.zeros(1)
         for ll_i in ll:
             grad_pol = torch.autograd.grad(ll_i, self.policy.trainable_params, retain_graph=True)
@@ -167,6 +180,7 @@ class NaturalPolicyGradients:
             F_i = np.dot(grad_pol.reshape(-1,1), grad_pol.reshape(1,-1))
             F = F + F_i
 
+        # print("F", F)
         return F / len(ll)
 
         # ll = self.policy.new_dist_info(observations, actions)[0]

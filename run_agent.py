@@ -12,7 +12,7 @@ from drl_hw1.baselines.linear_baseline import LinearBaseline
 from drl_hw1.algos.batch_reinforce import BatchREINFORCE
 from drl_hw1.utils.train_agent import train_agent
 import time as timer
-SEED = 500
+SEED = 30
 import argparse
 from drl_hw1.utils.gym_env import GymEnv
 import pickle
@@ -37,6 +37,10 @@ def main():
                         help='The agent you want out of batch/adp/npg', default='batch')
     parser.add_argument('-nt', metavar='NT', type=int,
                         help='Number of trajectories', default=10)
+    parser.add_argument('-it', metavar='IT', type=int,
+                        help='Number of iterations', default=50)
+    parser.add_argument('-id', metavar='ID', type=str,
+                        help='Number of iterations', default='')
 
     args = parser.parse_args()
 
@@ -44,7 +48,7 @@ def main():
     policy = MLP(e.spec, hidden_sizes=(32,32), seed=SEED)
     baselines = {
         'lin' : LinearBaseline(e.spec),
-        'mlp' : MLPBaseline(e.spec)
+        'mlp' : MLPBaseline(e.spec, seed=SEED)
     }
     baseline = baselines[args.bl]
 
@@ -56,11 +60,11 @@ def main():
     agent = agents[args.a]
 
     ts = timer.time()
-    job_name = os.path.join(saved_dir, '%s_traj%d_%d' % (args.env, args.nt, SEED))
+    job_name = os.path.join(saved_dir, '%s_traj%d_%d_it%d_%s' % (args.env, args.nt, SEED, args.it, args.id))
     train_agent(job_name= ensure_dir(job_name),
                 agent=agent,
                 seed=SEED,
-                niter=15,
+                niter=args.it,
                 gamma=0.995,
                 gae_lambda=0.97,
                 num_cpu=5,
