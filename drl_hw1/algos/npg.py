@@ -30,6 +30,7 @@ class NaturalPolicyGradients:
         self.seed = seed
         self.save_logs = save_logs
         self.delta = delta
+        self.alpha = 1
         self.running_score = None
         np.random.seed(seed)
         if save_logs: self.logger = DataLog()
@@ -130,21 +131,19 @@ class NaturalPolicyGradients:
         # Optimization algorithm
         # --------------------------
         ts = timer.time()
-        sub_i = np.random.choice(observations.shape[0], int(0.1 * observations.shape[0]))
-
-        surr_before = self.CPI_surrogate(observations,actions, advantages).data.numpy().ravel()[0]
+        surr_before = self.CPI_surrogate(observations, actions, advantages).data.numpy().ravel()[0]
         curr_params = self.policy.get_param_values()
         vpg_grad = self.flat_vpg(observations, actions, advantages)
 
         F = self.get_fisher_mat(observations, actions, sub_s = 0.1)
         F[np.diag_indices_from(F)] += 1e-8
         npg_grad = spLA.cg(F, vpg_grad, maxiter=15)[0]
-        alpha = self.calculate_alpha(vpg_grad, npg_grad)
+        self.alpha = self.calculate_alpha(vpg_grad, npg_grad)
 
         # print("alpha", alpha)
         # print("npg grad", npg_grad)
         # print("vpg grad", vpg_grad)
-        new_params, new_surr, kl_dist = self.simple_gradient_update(curr_params, npg_grad, alpha,
+        new_params, new_surr, kl_dist = self.simple_gradient_update(curr_params, npg_grad, self.alpha,
                                         observations, actions, advantages)
 
 
@@ -156,6 +155,7 @@ class NaturalPolicyGradients:
         if self.save_logs:
             self.logger.log_kv('time_opt', t_opt)
             self.logger.log_kv('kl_dist', kl_dist)
+            self.logger.log_kv('alpha', self.alpha)
             self.logger.log_kv('surr_improvement', surr_improvement)
             self.logger.log_kv('running_score', self.running_score)
 

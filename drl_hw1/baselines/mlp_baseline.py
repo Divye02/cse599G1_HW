@@ -6,14 +6,13 @@ from drl_hw1.utils.gym_env import EnvSpec
 from torch.utils.data import TensorDataset, DataLoader
 
 class MLPBaseline:
-    def __init__(self, env_spec: EnvSpec, hidden_sizes=(64,64), learning_rate=1e-4, epoch=10, batch=10, seed=None):
+    def __init__(self, env_spec: EnvSpec, hidden_sizes=(64,64), learning_rate=1e-4, epoch=5, batch=32, seed=None):
         self.feature_size = env_spec.observation_dim + 4
         self.loss_fn = nn.MSELoss(size_average=False)
         self.learning_rate = learning_rate
         self.hidden_sizes = hidden_sizes
         self.epoch = epoch
-        torch.manual_seed(seed)
-        np.random.seed(seed)
+        # torch.manual_seed(seed)
         self.batch = batch
         self.model = nn.Sequential()
         self.model.add_module('fc_0', nn.Linear(self.feature_size, self.hidden_sizes[0]))
@@ -36,8 +35,10 @@ class MLPBaseline:
 
         featmat = np.concatenate([self._features(path) for path in paths])
         returns = np.concatenate([path["returns"] for path in paths])
+
         dataset = TensorDataset(torch.FloatTensor(featmat), torch.FloatTensor(returns))
         data_loader = DataLoader(dataset, batch_size=self.batch, shuffle=True)
+
         optimizer = torch.optim.Adam(self.model.parameters(), lr=self.learning_rate)
 
         if return_errors:
@@ -49,14 +50,13 @@ class MLPBaseline:
                 target = Variable(target).float()
                 predictions = self.model(data)
                 loss = self.loss_fn(predictions, target)
-                error_before += loss
                 optimizer.zero_grad()
                 loss.backward()
                 optimizer.step()
 
         if return_errors:
             error_after = self.get_error(data_loader)
-            return error_before, error_after
+            return error_before/np.sum(returns**2), error_after/np.sum(returns**2)
 
     def get_error(self, data_loader):
         error = 0

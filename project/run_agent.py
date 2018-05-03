@@ -1,10 +1,8 @@
-MAIN_DIR = '/Users/Divye/Documents/CSE/599G1/drl_hw1'
-
 import os
 from drl_hw1.baselines.mlp_baseline import MLPBaseline
 from drl_hw1.algos.npg import NaturalPolicyGradients
 from drl_hw1.algos.adaptive_vpg import AdaptiveVPG
-
+from project.settings import *
 import drl_hw1.envs
 
 from drl_hw1.policies.gaussian_mlp import MLP
@@ -12,14 +10,16 @@ from drl_hw1.baselines.linear_baseline import LinearBaseline
 from drl_hw1.algos.batch_reinforce import BatchREINFORCE
 from drl_hw1.utils.train_agent import train_agent
 import time as timer
-SEED = 30
+
 import argparse
 from drl_hw1.utils.gym_env import GymEnv
 import pickle
 
+
+
 def main():
-    main_dir = os.path.join(MAIN_DIR, 'drl_hw1')
-    saved_dir = os.path.join(main_dir, 'results')
+    SEED = 500
+
     envs = {
         'cheetah': GymEnv('drl_hw1_half_cheetah-v0'),
         'ant' : GymEnv('drl_hw1_ant-v0'),
@@ -42,7 +42,18 @@ def main():
     parser.add_argument('-id', metavar='ID', type=str,
                         help='Number of iterations', default='')
 
+    parser.add_argument('-seed', metavar='SD', type=int,
+                        help='Number of iterations', default=SEED)
+
+    parser.add_argument('-alpha', metavar='AL', type=int,
+                        help='Number of iterations', default=1.0)
+
+    parser.add_argument('-delta', metavar='DL', type=int,
+                        help='Number of iterations', default=1.0)
+
     args = parser.parse_args()
+
+    SEED = args.seed
 
     e = envs[args.env]
     policy = MLP(e.spec, hidden_sizes=(32,32), seed=SEED)
@@ -53,14 +64,14 @@ def main():
     baseline = baselines[args.bl]
 
     agents = {
-        'batch': BatchREINFORCE(e, policy, baseline, learn_rate=1.0, seed=SEED, save_logs=True),
-        'adp': AdaptiveVPG(e, policy, baseline, seed=SEED, save_logs=True),
+        'batch': BatchREINFORCE(e, policy, baseline, learn_rate=args.alpha, seed=SEED, save_logs=True),
+        'adp': AdaptiveVPG(e, policy, baseline, seed=SEED, save_logs=True, kl_desired=args.delta),
         'npg': NaturalPolicyGradients(e, policy, baseline, seed=SEED, save_logs=True)
     }
     agent = agents[args.a]
 
     ts = timer.time()
-    job_name = os.path.join(saved_dir, '%s_traj%d_%d_it%d_%s' % (args.env, args.nt, SEED, args.it, args.id))
+    job_name = os.path.join(RES_DIR, '%s_traj%d_%d_it%d_%s' % (args.env, args.nt, SEED, args.it, args.id))
     train_agent(job_name= ensure_dir(job_name),
                 agent=agent,
                 seed=SEED,

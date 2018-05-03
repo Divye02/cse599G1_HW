@@ -9,12 +9,15 @@ import drl_hw1.envs
 # del(e)
 
 # swimmer
-e = GymEnv('drl_hw1_swimmer-v0')
-# file= '/Users/Divye/Documents/CSE/599G1/drl_hw1/drl_hw1/results/swimmer_traj10_500_it50/iterations/best_policy.pickle'
-file = '/Users/Divye/Documents/CSE/599G1/drl_hw1/drl_hw1/results/swimmer_traj10_500_it50_64_64_10_10_01/iterations/best_policy.pickle'
-# file = '/Users/Divye/Documents/CSE/599G1/drl_hw1/drl_hw1/results/swimmer_traj10_500_it50_64_64_10_10_desc/iterations/policy_40.pickle'
-# file = 'swimmer_pol.pickle'
-# file = '/Users/Divye/Documents/CSE/599G1/drl_hw1/drl_hw1/results/swimmer_traj5_500_it100_64_64_10_10_01/iterations/policy_90.pickle'
+envs = {
+        'cheetah': GymEnv('drl_hw1_half_cheetah-v0'),
+        'ant' : GymEnv('drl_hw1_ant-v0'),
+        'swimmer' : GymEnv('drl_hw1_swimmer-v0')
+    }
+
+file = 'best_policy_che_4.pickle'
+e = envs['cheetah']
+
 policy = pickle.load(open(file, 'rb'))
 e.visualize_policy(policy, num_episodes=5, horizon=500, mode='exploration')
 del(e)
