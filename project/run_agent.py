@@ -23,7 +23,8 @@ def main():
     envs = {
         'cheetah': GymEnv('drl_hw1_half_cheetah-v0'),
         'ant' : GymEnv('drl_hw1_ant-v0'),
-        'swimmer' : GymEnv('drl_hw1_swimmer-v0')
+        'swimmer' : GymEnv('drl_hw1_swimmer-v0'),
+        'reacher': GymEnv('drl_hw1_reacher-v0')
     }
 
     parser = argparse.ArgumentParser(description='Train some agent')
@@ -37,19 +38,17 @@ def main():
                         help='The agent you want out of batch/adp/npg', default='batch')
     parser.add_argument('-nt', metavar='NT', type=int,
                         help='Number of trajectories', default=10)
-    parser.add_argument('-it', metavar='IT', type=int,
-                        help='Number of iterations', default=50)
     parser.add_argument('-id', metavar='ID', type=str,
-                        help='Number of iterations', default='')
+                        help='Some special id to add to the result folder', default='')
 
     parser.add_argument('-seed', metavar='SD', type=int,
-                        help='Number of iterations', default=SEED)
+                        help='Random seed', default=SEED)
 
-    parser.add_argument('-alpha', metavar='AL', type=int,
-                        help='Number of iterations', default=1.0)
+    parser.add_argument('-alpha', metavar='AL', type=float,
+                        help='the learning rate', default=0.4)
 
-    parser.add_argument('-delta', metavar='DL', type=int,
-                        help='Number of iterations', default=1.0)
+    parser.add_argument('-delta', metavar='DL', type=float,
+                        help='The delta bar', default=1.0)
 
     args = parser.parse_args()
 
@@ -66,16 +65,16 @@ def main():
     agents = {
         'batch': BatchREINFORCE(e, policy, baseline, learn_rate=args.alpha, seed=SEED, save_logs=True),
         'adp': AdaptiveVPG(e, policy, baseline, seed=SEED, save_logs=True, kl_desired=args.delta),
-        'npg': NaturalPolicyGradients(e, policy, baseline, seed=SEED, save_logs=True)
+        'npg': NaturalPolicyGradients(e, policy, baseline, seed=SEED, save_logs=True, delta=args.delta)
     }
     agent = agents[args.a]
 
     ts = timer.time()
-    job_name = os.path.join(RES_DIR, '%s_traj%d_%d_it%d_%s' % (args.env, args.nt, SEED, args.it, args.id))
+    job_name = os.path.join(RES_DIR, '%s_traj%d_%d_%s' % (args.env, args.nt, SEED, args.id))
     train_agent(job_name= ensure_dir(job_name),
                 agent=agent,
                 seed=SEED,
-                niter=args.it,
+                niter=int(500/args.nt),
                 gamma=0.995,
                 gae_lambda=0.97,
                 num_cpu=5,

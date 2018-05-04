@@ -142,6 +142,9 @@ class MujocoEnv(gym.Env):
                 t = t+1
         self.mujoco_render_frames = False
 
+    def get_body_com(self, body_name):
+        return self.data.get_body_xpos(body_name)
+
     def visualize_policy_offscreen(self, policy, horizon=1000,
                                    num_episodes=1,
                                    mode='exploration',
