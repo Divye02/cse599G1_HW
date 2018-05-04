@@ -19,6 +19,28 @@ import pickle
 
 def main():
     SEED = 500
+    
+    parser = argparse.ArgumentParser(description='Train agent')
+    parser.add_argument('-env', metavar='ENV', type=str,
+                        help='The env out of cheetah/ant/swimmer/reacher', default='cheetah')
+    parser.add_argument('-bl', metavar='BL', type=str,
+                        help='The baseline you want out of linear(lin)/MLP(mlp)', default='mlp')
+    parser.add_argument('-a', metavar='A', type=str,
+                        help='The agent you want out of batch/adp/npg', default='npg')
+    parser.add_argument('-nt', metavar='NT', type=int,
+                        help='Number of trajectories', default=10)
+    parser.add_argument('-id', metavar='ID', type=str,
+                        help='Some special id to add to the result folder', default='')
+    parser.add_argument('-seed', metavar='SD', type=int,
+                        help='Random seed', default=SEED)
+    parser.add_argument('-alpha', metavar='AL', type=float,
+                        help='The learning rate', default=0.4)
+    parser.add_argument('-delta', metavar='DL', type=float,
+                        help='The delta bar', default=1.0)
+
+    args = parser.parse_args()
+
+    SEED = args.seed
 
     envs = {
         'cheetah': GymEnv('drl_hw1_half_cheetah-v0'),
@@ -27,39 +49,15 @@ def main():
         'reacher': GymEnv('drl_hw1_reacher-v0')
     }
 
-    parser = argparse.ArgumentParser(description='Train some agent')
-    parser.add_argument('-env', metavar='ENV', type=str,
-                        help='The env you want out of cheetah/ant/swimmer', default='ant')
-    parser.add_argument('-sd', metavar='SAVED_DIR', type=str,
-                        help='The env you want out of cheetah/ant/swimmer', default='drl_hw1/results')
-    parser.add_argument('-bl', metavar='BL', type=str,
-                        help='The baseline you want out of linear(lin)/MLP(mlp)', default='lin')
-    parser.add_argument('-a', metavar='A', type=str,
-                        help='The agent you want out of batch/adp/npg', default='batch')
-    parser.add_argument('-nt', metavar='NT', type=int,
-                        help='Number of trajectories', default=10)
-    parser.add_argument('-id', metavar='ID', type=str,
-                        help='Some special id to add to the result folder', default='')
-
-    parser.add_argument('-seed', metavar='SD', type=int,
-                        help='Random seed', default=SEED)
-
-    parser.add_argument('-alpha', metavar='AL', type=float,
-                        help='the learning rate', default=0.4)
-
-    parser.add_argument('-delta', metavar='DL', type=float,
-                        help='The delta bar', default=1.0)
-
-    args = parser.parse_args()
-
-    SEED = args.seed
-
     e = envs[args.env]
+
     policy = MLP(e.spec, hidden_sizes=(32,32), seed=SEED)
+
     baselines = {
         'lin' : LinearBaseline(e.spec),
         'mlp' : MLPBaseline(e.spec, seed=SEED)
     }
+
     baseline = baselines[args.bl]
 
     agents = {
@@ -67,6 +65,7 @@ def main():
         'adp': AdaptiveVPG(e, policy, baseline, seed=SEED, save_logs=True, kl_desired=args.delta),
         'npg': NaturalPolicyGradients(e, policy, baseline, seed=SEED, save_logs=True, delta=args.delta)
     }
+
     agent = agents[args.a]
 
     ts = timer.time()
