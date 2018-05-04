@@ -6,7 +6,7 @@ from drl_hw1.utils.gym_env import EnvSpec
 from torch.utils.data import TensorDataset, DataLoader
 
 class MLPBaseline:
-    def __init__(self, env_spec: EnvSpec, hidden_sizes=(64,64), learning_rate=1e-4, epoch=5, batch=32, seed=None):
+    def __init__(self, env_spec: EnvSpec, hidden_sizes=(64,64), learning_rate=1e-4, epoch=10, batch=10, seed=None):
         self.feature_size = env_spec.observation_dim + 4
         self.loss_fn = nn.MSELoss(size_average=False)
         self.learning_rate = learning_rate
